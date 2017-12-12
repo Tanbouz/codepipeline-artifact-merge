@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "babel src/index.js -o dist/index.js && cp package.json dist/package.json && cd dist && npm install --production"
+    "build": "mkdir -p dist && cp src/index.js package.json dist/ && cd dist && npm install --production",
+    "package": "zip -r dist.zip dist"
   },
   "author": "s.tanbouz",
   "repository": {
