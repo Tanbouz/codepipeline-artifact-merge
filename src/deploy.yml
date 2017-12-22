@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Parameters:
+  FunctionName:
+    Type: String
+    Description: Lambda function name.
+    Default: CodePipelineArtifactMerge
+  ArtifactStore:
+    Type: String
+    Description: The S3 bucket name that CodePipeline uses to store artifacts.
+Resources:
+  CodePipelineArtifactMergeFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: !Sub ${FunctionName}
+      Description: "Merge artifacts in AWS CodePipeline into a single artifact using AWS Lambda"
+      Runtime: nodejs6.10
+      Handler: index.handler
+      MemorySize: 256
+      Timeout: 30
+      AutoPublishAlias: prod
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: !Sub 'arn:${AWS::Partition}:s3:::${ArtifactStore}/*'
+            - Effect: 'Allow'
+              Action:
+                - codepipeline:PutJobSuccessResult
+                - codepipeline:PutJobFailureResult
+              Resource: '*'
