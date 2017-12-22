@@ -30,7 +30,9 @@ Find on https://aws.amazon.com/serverless/serverlessrepo/
 
 2. `cd codepipeline-artifact-merge`
 
-3. package
+3. `npm run build`
+
+4. package
 ```
 aws cloudformation package --template-file dist/deploy.yml --output-template-file tmp/deploy.yml  --region us-east-1 --s3-bucket codepipeline-artifact-merge
 ```
@@ -40,7 +42,7 @@ aws cloudformation package --template-file dist/deploy.yml --output-template-fil
 
 > Make sure your AWS CLI user has the necessary permissions
 
-4. Deploy using CloudFormation
+5. Deploy using CloudFormation
 ```
 aws cloudformation deploy --parameter-overrides FunctionName=CodePipelineArtifactMerge ArtifactStore=my-pipeline-bucket --template-file tmp/deploy.yml --stack-name codepipeline-artifact-merge --capabilities CAPABILITY_IAM
 ```
@@ -53,12 +55,12 @@ aws cloudformation deploy --parameter-overrides FunctionName=CodePipelineArtifac
 > Make sure your AWS CLI user has the necessary permissions.
 
 
-5. Create a new stage in your CodePipeline
+6. Create a new stage in your CodePipeline
 > Make sure your CodePipeline's role has the necessary permissions to invoke the Lambda function
 
-6. Create a new __Invoke__ action inside the new stage with provider __AWS Lambda__.
+7. Create a new __Invoke__ action inside the new stage with provider __AWS Lambda__.
 
-7. Fill in action name, select lambda function name and input artifacts.
+8. Fill in action name, select lambda function name and input artifacts.
 
 ### Notes
  * __CodePipeline Artifact Merge__ combines different artifacts at the root level of the directories.
