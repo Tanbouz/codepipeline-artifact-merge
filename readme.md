@@ -24,7 +24,7 @@ Or host a library of common deployments scripts in a single independent reposito
 
 Find on https://aws.amazon.com/serverless/serverlessrepo/
 
-#### Manual way
+#### Manual way (Linux/Mac with nodejs/npm installed)
 1. `git clone`
 
 2. `cd codepipeline-artifact-merge`
@@ -33,7 +33,7 @@ Find on https://aws.amazon.com/serverless/serverlessrepo/
 
 4. package
 ```
-aws cloudformation package --template-file dist/deploy.yml --output-template-file tmp/deploy.yml  --region us-east-1 --s3-bucket codepipeline-artifact-merge
+aws cloudformation package --region us-east-1 --s3-bucket somebucket --template-file dist/deploy.yml --output-template-file tmp/deploy.yml
 ```
 > Change the `--region` to the region you are using.
 
@@ -43,7 +43,7 @@ aws cloudformation package --template-file dist/deploy.yml --output-template-fil
 
 5. Deploy using CloudFormation
 ```
-aws cloudformation deploy --parameter-overrides FunctionName=CodePipelineArtifactMerge ArtifactStore=my-pipeline-bucket --template-file tmp/deploy.yml --stack-name codepipeline-artifact-merge --capabilities CAPABILITY_IAM
+aws cloudformation deploy --region us-east-1 --parameter-overrides FunctionName=CodePipelineArtifactMerge ArtifactStore=my-pipeline-bucket --template-file tmp/deploy.yml --stack-name codepipeline-artifact-merge --capabilities CAPABILITY_IAM
 ```
 > Change CloudFormation stack name `--stack-name`
 
