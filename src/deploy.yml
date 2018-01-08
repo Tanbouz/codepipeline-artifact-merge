@@ -12,7 +12,7 @@ Resources:
   CodePipelineArtifactMergeFunction:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: !Sub ${FunctionName}
+      FunctionName: !Ref FunctionName
       Description: "Merge artifacts in AWS CodePipeline into a single artifact using AWS Lambda"
       Runtime: nodejs6.10
       Handler: index.handler
@@ -20,14 +20,10 @@ Resources:
       Timeout: 30
       AutoPublishAlias: prod
       Policies:
-        - AWSLambdaBasicExecutionRole
+        - S3CrudPolicy:
+            BucketName: !Ref ArtifactStore
         - Version: '2012-10-17'
           Statement:
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-                - s3:PutObject
-              Resource: !Sub 'arn:${AWS::Partition}:s3:::${ArtifactStore}/*'
             - Effect: 'Allow'
               Action:
                 - codepipeline:PutJobSuccessResult
