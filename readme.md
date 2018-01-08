@@ -6,17 +6,16 @@ Merge artifacts in AWS CodePipeline into a single artifact using AWS Lambda.
 ![Use case diagram](/images/usecase.png)
 Split CodeDeploy deployment scripts, appspec.yml config and your application code into different repositories or S3 buckets. 
 
-#### 1. Mix and match :cookie:
+
+#### 1. Generic merging of artifacts
+
+#### 2. CodeDeploy flexibility
 
 Instead of including __AWS CodeDeploy's__ `appspec.yml` and `deployment scripts` in the application code repository, you can store them in a separate location (git or s3 for example) then merge them with application code during deployment.
 
-This allows you to use different `appspec.yml` or `deployment scripts` for different environments *staging, production* for instance. 
+This allows you to use different `appspec.yml` or `deployment scripts` for different environments *staging, production* for instance.
 
-#### 2. Avoid repetition :bulb:
-
-Host a library of common deployments scripts in a single independent repository without the need to maintain or include deployment scripts in each of the application repositories.
-
-#### 3. Generic merging of artifacts :gear:
+Or host a library of common deployments scripts in a single independent repository without the need to maintain or include deployment scripts in each of the application repositories.
 
 
 ## Usage & deployment
