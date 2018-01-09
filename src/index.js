@@ -52,14 +52,15 @@ const getArtifact = function (bucket, key) {
 };
 
 // Put an artifact on S3
-const putArtifact = function (bucket, key, artifact) {
+const putArtifact = function (bucket, key, artifact, encryption="aws:kms") {
+    
     return new Promise((resolve, reject) => {
         let params = {
             Body: artifact,
             Bucket: bucket,
             ContentType: "application/zip",
             Key: key,
-            ServerSideEncryption: "AES256"
+            ServerSideEncryption: encryption
         };
 
         s3.putObject(params, function (error, data) {
@@ -98,9 +99,23 @@ exports.handler = function (event, _context) {
     // Retrieve the Job ID from the Lambda action
     jobId = event["CodePipeline.job"].id;
     context = _context;
+    let s3Encryption ="aws:kms";
 
-    // [Optional] parameters to customize function if needed later on, not currently used.
-    let url = event["CodePipeline.job"].data.actionConfiguration.configuration.UserParameters;
+    // Parameters to customize function
+    let parameters_string = event["CodePipeline.job"].data.actionConfiguration.configuration.UserParameters;
+    
+    if(parameters_string){
+        console.log(parameters_string);
+        try {
+            let parameters = JSON.parse(parameters_string);
+            if('encryption' in parameters){
+                console.log(parameters.encryption)
+                s3Encryption = parameters.encryption;
+            }
+        } catch (error) {
+            console.log(error)
+        }
+    }
 
     // CodePipeline event meta data
     let job_meta = event['CodePipeline.job']['data'];
@@ -126,7 +141,7 @@ exports.handler = function (event, _context) {
                 // Encode the merged output artifact then upload to S3    
                 merged_zip.generateAsync({ type: "nodebuffer" }).then(output_artifact_body => {
                     let output_artifact = output_artifacts_meta[0].location.s3Location;
-                    putArtifact(output_artifact.bucketName, output_artifact.objectKey, output_artifact_body).then(() => {
+                    putArtifact(output_artifact.bucketName, output_artifact.objectKey, output_artifact_body, s3Encryption).then(() => {
                         console.log("Merged artifacts successfully and uploaded to S3.");
                         putJobSuccess("Merged artifacts successfully.");
                     }).catch((error) => {
