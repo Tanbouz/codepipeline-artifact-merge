@@ -55,7 +55,7 @@ const getArtifact = function (bucket, key) {
 
 // Put an artifact on S3
 const putArtifact = function (bucket, key, artifact) {
-    
+
     return new Promise((resolve, reject) => {
         let params = {
             Body: artifact,
@@ -63,11 +63,11 @@ const putArtifact = function (bucket, key, artifact) {
             ContentType: "application/zip",
             Key: key
         };
-        
-        if(detectedServerSideEncryption){
-           params.ServerSideEncryption = detectedServerSideEncryption;
+
+        if (detectedServerSideEncryption) {
+            params.ServerSideEncryption = detectedServerSideEncryption;
         }
-         
+
         s3.putObject(params, function (error, data) {
             if (error) {
                 reject(error);
@@ -93,12 +93,34 @@ const mergeArtifacts = function (output_artifact, input_artifacts, index) {
                 // Last recursive call should drop here
                 resolve(updated_output_artifact);
             }
-        // JSZip: "The promise can fail if the loaded data is not valid zip data or if it uses unsupported features (multi volume, password protected, etc)."
+            // JSZip: "The promise can fail if the loaded data is not valid zip data or if it uses unsupported features (multi volume, password protected, etc)."
         }).catch((error) => {
             reject(error);
         });
     });
 };
+
+// Merge all artifacts
+const mergeAll = function (output_artifact, input_artifacts) {
+    let new_zip = new JSZip();
+
+    // Merge zipped input artifacts into a single zipped output artifact
+    mergeArtifacts(new_zip, input_artifacts, 0).then(merged_zip => {
+        // Encode the merged output artifact then upload to S3    
+        merged_zip.generateAsync({ type: "nodebuffer" }).then(output_artifact_body => {
+            putArtifact(output_artifact.bucketName, output_artifact.objectKey, output_artifact_body).then(() => {
+                console.log("Merged artifacts successfully and uploaded to S3.");
+                putJobSuccess("Merged artifacts successfully.");
+            }).catch((error) => {
+                console.log("S3 put error: " + error);
+                putJobFailure("Failed to upload output artifact to S3.");
+            });
+        });
+    }).catch((error) => {
+        console.log("JSZip error: " + error);
+        putJobFailure("Failed to load zipped artifact.");
+    });
+}
 
 exports.handler = function (event, _context) {
     // Retrieve the Job ID from the Lambda action
@@ -107,7 +129,7 @@ exports.handler = function (event, _context) {
 
     // Parameters to customize function
     let parameters_string = event["CodePipeline.job"].data.actionConfiguration.configuration.UserParameters;
-    
+
     // CodePipeline event meta data
     let job_meta = event['CodePipeline.job']['data'];
     let input_artifacts_meta = job_meta['inputArtifacts'];
@@ -116,40 +138,31 @@ exports.handler = function (event, _context) {
     // Artifact - S3 download promises
     let await_input_artifacts = [];
 
-    try {
-        // Download all input artifacts from S3
-        for (let artifact of input_artifacts_meta) {
-            await_input_artifacts.push(getArtifact(artifact.location.s3Location.bucketName, artifact.location.s3Location.objectKey));
-        }
-
-        // Wait till all input artifacts are fetched.
-        Promise.all(await_input_artifacts).then(input_artifacts => {
-            console.log(input_artifacts.length + " artifacts fetched.");
-
-            var new_zip = new JSZip();
-            // Merge zipped input artifacts into a single zipped output artifact
-            mergeArtifacts(new_zip, input_artifacts, 0).then(merged_zip => {
-                // Encode the merged output artifact then upload to S3    
-                merged_zip.generateAsync({ type: "nodebuffer" }).then(output_artifact_body => {
-                    let output_artifact = output_artifacts_meta[0].location.s3Location;
-                    putArtifact(output_artifact.bucketName, output_artifact.objectKey, output_artifact_body).then(() => {
-                        console.log("Merged artifacts successfully and uploaded to S3.");
-                        putJobSuccess("Merged artifacts successfully.");
-                    }).catch((error) => {
-                        console.log("S3 put error: " + error);
-                        putJobFailure("Failed to upload output artifact to S3.");
-                    });
-                });
+    if (output_artifacts_meta.length > 0) {
+        try {
+            let output_artifact = output_artifacts_meta[0].location.s3Location;
+            // Download all input artifacts from S3
+            for (let artifact of input_artifacts_meta) {
+                await_input_artifacts.push(getArtifact(artifact.location.s3Location.bucketName, artifact.location.s3Location.objectKey));
+            }
+            // Wait till all input artifacts are fetched.
+            Promise.all(await_input_artifacts).then(input_artifacts => {
+                console.log(input_artifacts.length + " artifacts fetched.");
+                if (input_artifacts.length > 0) {
+                    mergeAll(output_artifact, input_artifacts);
+                } else {
+                    console.log("No artifacts found. Nothing to merge.");
+                    putJobSuccess("No artifacts found. Nothing to merge.");
+                }
             }).catch((error) => {
-                console.log("JSZip error: " + error);
-                putJobFailure("Failed to load zipped artifact.");
+                console.log("S3 get error: " + error);
+                putJobFailure("Failed to retrieve an object from S3.");
             });
-        }).catch((error) => {
-            console.log("S3 get error: " + error);
-            putJobFailure("Failed to retrieve an object from S3.");
-        });
-    } catch (error) {
-        console.log(error);
-        putJobFailure("Unknown error: check CloudWatch logs.");
+        } catch (error) {
+            console.log(error);
+            putJobFailure("Unknown error: check CloudWatch logs.");
+        }
+    } else {
+        putJobFailure("No output artifact configured.");
     }
 };
