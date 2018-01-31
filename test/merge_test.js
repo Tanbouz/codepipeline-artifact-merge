@@ -30,7 +30,7 @@ suite('Merge', function() {
         });
 
 
-        test('should accept and return string `value`', function(done) {
+        test('should return a zipped file with the correct contents', function(done) {
             let new_zip = new JSZip();
             let input_artifacts = [content_a, content_b];
             let outputZipPath = "test/generated/output.zip";
