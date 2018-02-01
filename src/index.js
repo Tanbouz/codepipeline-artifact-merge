@@ -166,3 +166,5 @@ exports.handler = function (event, _context) {
         putJobFailure("No output artifact configured.");
     }
 };
+
+exports.mergeArtifacts = mergeArtifacts;
