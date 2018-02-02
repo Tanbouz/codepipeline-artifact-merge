@@ -70,5 +70,6 @@ aws cloudformation deploy --parameter-overrides FunctionName=CodePipelineArtifac
 
 ### 4. Notes
  * __CodePipeline Artifact Merge__ combines different artifacts at the root level of the directories.
+ * There is an option to have each input artifact contained in its own folder within the output artifact zip, with the folder name being the input artifact name itself. To set this option, enter the JSON string `'{ "subfolder": true }'` as an input parameter to the lambda.
  * Even though there is no hard-limit on how many artifacts the function can merge, it is currently limited by CodePipeline & Lambda integration restriction of 5 input artifacts. ( Cascade merge? )
  * If your application code size is large, maybe tweaking Lambda's __Memory__ and __Timeout__ can help.
