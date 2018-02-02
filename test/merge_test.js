@@ -108,4 +108,19 @@ suite('Merge', function() {
         });
     })
 
+    suite('Parsing parameter string', function() {
+
+
+        test('should throw an error when an invalid json is entered', function() {
+            assert.throws(function(){ index.parseParametersString('not a json') });
+            assert.throws(function(){ index.parseParametersString('{"subfolder": true }}') });
+        });
+
+
+        test('should not throw an error when an valid json or empty value is entered', function() {
+            assert.doesNotThrow(function(){ index.parseParametersString('{ "subfolder": true }') });
+            assert.doesNotThrow(function(){ index.parseParametersString('') });
+            assert.doesNotThrow(function(){ index.parseParametersString(null) });
+        });
+    })
 })

@@ -152,6 +152,15 @@ const mergeAll = function (output_artifact, input_artifacts, options) {
     });
 }
 
+// parameters_string should be a json string, i.e. '{ "subfolder": true }';
+const parseParametersString = function (parameters_string){
+    if (parameters_string) {
+        return JSON.parse(parameters_string);
+    } else {
+        return null;
+    }
+}
+
 exports.handler = function (event, _context) {
     // Retrieve the Job ID from the Lambda action
     jobId = event["CodePipeline.job"].id;
@@ -161,10 +170,9 @@ exports.handler = function (event, _context) {
     let parameters_string = event["CodePipeline.job"].data.actionConfiguration.configuration.UserParameters;
     let options = null;
 
-    // '{ "subfolder": true} }';
     try {
-        options = JSON.parse(parameters_string);
-    } catch (error) {
+        options = parseParametersString(parameters_string);
+    } catch (error){
         console.log(error);
         putJobFailure("Invalid JSON input error");
         return;
@@ -210,3 +218,5 @@ exports.handler = function (event, _context) {
 exports.mergeArtifacts = mergeArtifacts;
 
 exports.mergeArtifactsWithSubFolder = mergeArtifactsWithSubFolder;
+
+exports.parseParametersString = parseParametersString;
