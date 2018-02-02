@@ -4,21 +4,19 @@ Merge artifacts in AWS CodePipeline into a single artifact using AWS Lambda.
 
 ##  1. Use cases
 
-
-
 #### 1.1 Generic merging of artifacts
 
-Example of a 2-step merge showcasing both root merge & subfolder merge modes:
+This example will merge input artifacts `a.zip` & `b.zip` using **root merge** then merge the resulting output artifact `foo` with `c.zip` using **subfolder merge** mode. You can use either or both modes in your pipeline.
 
-CodePipeline sources
+S3 sources
 ```
 a.zip
-├──shared/
+├──shared
 │   └──a.txt
 └──a.txt
 
 b.zip
-├──shared/
+├──shared
 │   └──b.txt
 └──b.txt
 
@@ -26,21 +24,26 @@ c.zip
 └──c.txt
 ```
 
-Step 1 - Default root merge behaviour 
+Step 1 - Root merge (Default)
 
-Example: MergeRoot(a & b) -> foo
+Input Artifacts: `a.zip` & `b.zip`
+
+Resulting output artifact of `MergeRoot` stage:
+
 ```
 foo
-├──shared/
+├──shared
 │   ├──a.txt
 │   └──b.txt
 ├──a.txt
 └──b.txt
 ```
 
-Step 2 - Subfolder merge behaviour
+Step 2 - Subfolder merge (see *Modes*)
 
-Example: MergeIntoSubfolders(foo & c) -> bar
+Input Artifacts: `foo` & `c.zip`
+
+Resulting output artifact of `MergeIntoSubfolders` stage:
 ```
 bar
 ├──foo
@@ -52,7 +55,7 @@ bar
 └──c
     └──c.txt
 ```
-> Note that the folder name `foo` will be the name of configured output artifact name in Step 1
+> Note that the folder name `foo` will be the name of the configured output artifact name in Step 1
 
 ![Generic merge example screenshot](/images/merge-example-1.png)
 
