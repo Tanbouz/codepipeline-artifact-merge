@@ -128,7 +128,7 @@ const mergeAll = function (output_artifact, input_artifacts, options) {
     let new_zip = new JSZip();
     let func = null;
 
-    if (options.subfolder === true){
+    if (options && options.subfolder === true){
         func = mergeArtifactsWithSubFolder;
     } else {
         func = mergeArtifacts;
