@@ -11,11 +11,15 @@ suite('Merge', function() {
 
         let content_a = fs.readFileSync('test/a.zip');
         let content_b = fs.readFileSync('test/b.zip');
+        let revision_a = 'lev28301xf2'
+        let revision_b = null;
         let combinedZipPath = "test/generated/combined_default.zip";
 
         setup(function(done) {
             let zip = new JSZip();
+            zip.file(".revision-id-a", revision_a);
             zip.loadAsync(content_a).then((zip) => {
+                zip.file(".revision-id-b", revision_b);
                 zip.loadAsync(content_b).then((zip) => {
                     zip.generateAsync({ type: "nodebuffer" }).then((content) => {
                         require("fs").writeFile(combinedZipPath, content, function (error) {
@@ -32,7 +36,10 @@ suite('Merge', function() {
 
         test('should return a zipped file with the correct contents', function(done) {
             let new_zip = new JSZip();
-            let input_artifacts = [{'data': content_a, 'name':'a'}, {'data': content_b, 'name':'b'}];
+            let input_artifacts = [
+                {'data': content_a, 'name':'a', 'revision':revision_a},
+                {'data': content_b, 'name':'b', 'revision':revision_b}
+            ];
             let outputZipPath = "test/generated/output_default.zip";
             let expected = fs.readFileSync(combinedZipPath);
 
@@ -60,14 +67,18 @@ suite('Merge', function() {
 
         let content_a = fs.readFileSync('test/a.zip');
         let content_b = fs.readFileSync('test/b.zip');
+        let revision_a = 'lev28301xf2'
+        let revision_b = null;
         let combinedZipPath = "test/generated/combined_subfolder.zip";
 
         setup(function(done) {
             let zip = new JSZip();
             inner_folder_a = zip.folder('a');
+            inner_folder_a.file(".revision-id", revision_a);
 
             inner_folder_a.loadAsync(content_a).then(() => {
                 inner_folder_b = zip.folder('b');
+                inner_folder_b.file(".revision-id", revision_b);
                 inner_folder_b.loadAsync(content_b).then(() => {
                     zip.generateAsync({ type: "nodebuffer" }).then((content) => {
                         require("fs").writeFile(combinedZipPath, content, function (error) {
@@ -84,7 +95,10 @@ suite('Merge', function() {
 
         test('should return a zipped file with the correct contents', function(done) {
             let new_zip = new JSZip();
-            let input_artifacts = [{'data': content_a, 'name':'a'}, {'data': content_b, 'name':'b'}];
+            let input_artifacts = [
+                {'data': content_a, 'name':'a', 'revision':revision_a},
+                {'data': content_b, 'name':'b', 'revision':revision_b}
+            ];
             let outputZipPath = "test/generated/output_subfolder.zip";
             let expected = fs.readFileSync(combinedZipPath);
 

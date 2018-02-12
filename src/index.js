@@ -38,7 +38,7 @@ const putJobFailure = function (message) {
 };
 
 // Retrieve an artifact from S3
-const getArtifact = function (bucket, key, name) {
+const getArtifact = function (bucket, key, name, revision) {
     return new Promise((resolve, reject) => {
         s3.getObject({ Bucket: bucket, Key: key }, function (error, data) {
             if (error != null) {
@@ -47,7 +47,7 @@ const getArtifact = function (bucket, key, name) {
             } else {
                 console.log(bucket + key + " fetched. " + data.ContentLength + " bytes");
                 detectedServerSideEncryption = data.ServerSideEncryption;
-                resolve({'data': data.Body, 'name': name});
+                resolve({'data': data.Body, 'name': name, 'revision': revision});
             }
         });
     });
@@ -81,6 +81,8 @@ const putArtifact = function (bucket, key, artifact) {
 // Merges zip files synchronously in a recursive manner (Await/Async when Lambda supports Node8?)
 const mergeArtifacts = function (output_artifact, input_artifacts, index) {
     return new Promise((resolve, reject) => {
+        // create a text file with revision id
+        output_artifact.file(".revision-id-"+input_artifacts[index].name, input_artifacts[index].revision);
         // Load the current zip artifact into our output zip
         output_artifact.loadAsync(input_artifacts[index].data).then(updated_output_artifact => {
             index += 1;
@@ -104,6 +106,8 @@ const mergeArtifactsWithSubFolder = function (output_artifact, input_artifacts, 
     return new Promise((resolve, reject) => {
         let folder_name = input_artifacts[index].name
         inner_folder = output_artifact.folder(folder_name);
+        // create a text file with revision id
+        inner_folder.file(".revision-id", input_artifacts[index].revision);
         // Load the current zip artifact into our output zip
         inner_folder.loadAsync(input_artifacts[index].data).then(() => {
             index += 1;
@@ -191,7 +195,7 @@ exports.handler = function (event, _context) {
             let output_artifact = output_artifacts_meta[0].location.s3Location;
             // Download all input artifacts from S3
             for (let artifact of input_artifacts_meta) {
-                await_input_artifacts.push(getArtifact(artifact.location.s3Location.bucketName, artifact.location.s3Location.objectKey, artifact.name));
+                await_input_artifacts.push(getArtifact(artifact.location.s3Location.bucketName, artifact.location.s3Location.objectKey, artifact.name, artifact.revision));
             }
             // Wait till all input artifacts are fetched.
             Promise.all(await_input_artifacts).then(input_artifacts => {
