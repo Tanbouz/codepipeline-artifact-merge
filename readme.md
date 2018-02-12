@@ -36,8 +36,12 @@ foo
 │   ├──a.txt
 │   └──b.txt
 ├──a.txt
-└──b.txt
+├──b.txt
+├──.revision-id-a
+└──.revision-id-b
 ```
+> The [revision ID]((https://docs.aws.amazon.com/codepipeline/latest/APIReference/API_Artifact.html#CodePipeline-Type-Artifact-revision)) 
+of each input artifact is included in the file .revision-id-{name-of-input-artifact}
 
 Step 2 - Subfolder merge (see *Modes*)
 
@@ -51,11 +55,18 @@ bar
 │   │   ├──a.txt
 │   │   └──b.txt
 │   ├──a.txt
-│   └──b.txt
+│   ├──b.txt
+│   ├──.revision-id-a
+│   ├──.revision-id-b
+│   └──.revision-id
 └──c
-    └──c.txt
+    │──c.txt
+    └──.revision-id
 ```
 > Note that the folder name `foo` will be the name of the configured output artifact name in Step 1
+
+> The [revision ID]((https://docs.aws.amazon.com/codepipeline/latest/APIReference/API_Artifact.html#CodePipeline-Type-Artifact-revision)) 
+of each input artifact is included in the file .revision-id
 
 ![Generic merge example screenshot](/images/merge-example-1.png)
 
