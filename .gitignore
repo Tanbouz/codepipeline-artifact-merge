@@ -165,3 +165,4 @@ tmp/
 
 # generated files
 **/generated/**
+!**/generated/empty.txt

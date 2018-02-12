@@ -3,72 +3,148 @@
 Merge artifacts in AWS CodePipeline into a single artifact using AWS Lambda.
 
 ##  1. Use cases
-![Use case diagram](/images/usecase.png)
+
+#### 1.1 Generic merging of artifacts
+
+This example will merge input artifacts `a.zip` & `b.zip` using **root merge** then merge the resulting output artifact `foo` with `c.zip` using **subfolder merge** mode. You can use either or both modes in your pipeline.
+
+S3 sources
+```
+a.zip
+├──shared
+│   └──a.txt
+└──a.txt
+
+b.zip
+├──shared
+│   └──b.txt
+└──b.txt
+
+c.zip
+└──c.txt
+```
+
+Step 1 - Root merge (Default)
+
+Input Artifacts: `a.zip` & `b.zip`
+
+Resulting output artifact of `MergeRoot` stage:
+
+```
+foo
+├──shared
+│   ├──a.txt
+│   └──b.txt
+├──a.txt
+└──b.txt
+```
+
+Step 2 - Subfolder merge (see *Modes*)
+
+Input Artifacts: `foo` & `c.zip`
+
+Resulting output artifact of `MergeIntoSubfolders` stage:
+```
+bar
+├──foo
+│   ├──shared
+│   │   ├──a.txt
+│   │   └──b.txt
+│   ├──a.txt
+│   └──b.txt
+└──c
+    └──c.txt
+```
+> Note that the folder name `foo` will be the name of the configured output artifact name in Step 1
+
+![Generic merge example screenshot](/images/merge-example-1.png)
+
+#### 1.2 CodeDeploy use case
+
 Split CodeDeploy deployment scripts, appspec.yml config and your application code into different repositories or S3 buckets. 
 
-Use case diagram: https://github.com/Tanbouz/codepipeline-artifact-merge/raw/master/images/usecase.png
+![CodeDeploy use case diagram](/images/codedeploy-example-1.png)
 
-#### - *Generic merging of artifacts*
+Instead of including __AWS CodeDeploy's__ `appspec.yml` and `deployment scripts` in your application code repository, you can store them in a separate location (S3 or git) then merge them with application code during deployment.
 
-#### - *CodeDeploy flexibility*
+* Allows you to use different `appspec.yml` or `deployment scripts` for different environments (production/staging)
 
-Instead of including __AWS CodeDeploy's__ `appspec.yml` and `deployment scripts` in the application code repository, you can store them in a separate location (git or s3 for example) then merge them with application code during deployment.
-
-This allows you to use different `appspec.yml` or `deployment scripts` for different environments *staging, production* for instance.
-
-Or host a library of common deployments scripts in a single independent repository without the need to maintain or include deployment scripts in each of the application repositories.
+* Host a library of common deployments scripts in a single independent repository without the need to maintain or include deployment scripts in each of your application repositories.
 
 ## 2. Usage
 
-After you deploy the application (see below).
+After you deploy the CodePipeline Artifact Merge function (see *Deployment* below).
 
-* Create an Invoke action in CodePipeline and select CodePipeline Artifact Merge function. 
+* Create a new __Invoke__ action in your pipeline with provider __AWS Lambda__ then select CodePipeline Artifact Merge function.
+> Make sure your CodePipeline's role has the necessary permissions to invoke the Lambda function
 * Select all input artifacts/sources you would like to merge and 
 * Configure the name of the merged output artifact to be used in later stages of your pipeline.
+
+#### 2.1 Modes
+* **Root merge (default)**
+Combines different artifacts at the root level of the directories
+
+* **Subfolder merge**
+Have each input artifact contained in its own folder within the output artifact zip, with the folder name being the input artifact name itself. To set this option, enter the JSON string `{ "subfolder": true }` as an input parameter to the lambda.
 
 ## 3. Deployment
 
 #### 3.1 AWS Serverless Application Repository (Preview)
 
-Find on https://aws.amazon.com/serverless/serverlessrepo/
+Register for preview https://aws.amazon.com/serverless/serverlessrepo/
+
+Deploy using [AWS Serverless Application Repository](https://serverlessrepo.aws.amazon.com/#/applications/arn:aws:serverlessrepo:us-east-1:775015977546:applications~codepipeline-artifact-merge)
+
+
+**Important** If you deploy through AWS Serverless Application Repository, you have to manually add permissions to the function's role so as Lambda can notify CodePipeline about its status. Unfortunately this can't be automated at the moment when using AWS Serverless Application Repository.
+
+Example policy:
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "codepipeline:PutJobSuccessResult",
+                "codepipeline:PutJobFailureResult"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        }
+    ]
+}
+```
 
 #### 3.2 Manual procedure (Linux/Mac with nodejs/npm installed)
 
-1. `git clone`
+* `git clone`
 
-2. `cd codepipeline-artifact-merge`
+* `cd codepipeline-artifact-merge`
 
-3. package
+* Package lambda function
 ```
 aws cloudformation package --template-file dist/deploy.yml --output-template-file tmp/deploy.yml  --region us-east-1 --s3-bucket codepipeline-artifact-merge
 ```
-> Change the `--region` to the region you are using.
+> Change the `--region` as required.
 
 > `--s3-bucket` Create or use an existing bucket to temporarily store the packaged lambda function.
 
 > Make sure your AWS CLI user has the necessary permissions
 
-4. Deploy using CloudFormation
+* Deploy using CloudFormation
 ```
-aws cloudformation deploy --parameter-overrides FunctionName=CodePipelineArtifactMerge ArtifactStore=my-pipeline-bucket --template-file tmp/deploy.yml --stack-name codepipeline-artifact-merge --capabilities CAPABILITY_IAM
+aws cloudformation deploy --parameter-overrides FunctionName=CodePipelineArtifactMerge ArtifactStore=my-pipeline-bucket --template-file tmp/deploy.yml --stack-name codepipeline-artifact-merge --capabilities CAPABILITY_IAM --region us-east-1
 ```
-> Change CloudFormation stack name `--stack-name`
-
-> Change `FunctionName` to change Lambda function name to be used later as reference in CodePipeline invoke action.
+> Change the `--region` as required.
 
 > Change `ArtifactStore`, the S3 bucket name configured for CodePipeline.
 
 > Make sure your AWS CLI user has the necessary permissions.
 
+> [Optional] Change CloudFormation stack name `--stack-name`
 
-5. Create a new stage in your CodePipeline
-> Make sure your CodePipeline's role has the necessary permissions to invoke the Lambda function
-
-6. Create a new __Invoke__ action inside the new stage with provider __AWS Lambda__.
-
-7. Fill in action name, select lambda function name and input artifacts.
+> [Optional] Change `FunctionName` to change Lambda function name to be used later as reference in CodePipeline invoke action.
 
 ### 4. Notes
- * __CodePipeline Artifact Merge__ combines different artifacts at the root level of the directories.
  * Even though there is no hard-limit on how many artifacts the function can merge, it is currently limited by CodePipeline & Lambda integration restriction of 5 input artifacts. ( Cascade merge? )
  * If your application code size is large, maybe tweaking Lambda's __Memory__ and __Timeout__ can help.

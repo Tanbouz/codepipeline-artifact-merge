@@ -38,7 +38,7 @@ const putJobFailure = function (message) {
 };
 
 // Retrieve an artifact from S3
-const getArtifact = function (bucket, key) {
+const getArtifact = function (bucket, key, name) {
     return new Promise((resolve, reject) => {
         s3.getObject({ Bucket: bucket, Key: key }, function (error, data) {
             if (error != null) {
@@ -47,7 +47,7 @@ const getArtifact = function (bucket, key) {
             } else {
                 console.log(bucket + key + " fetched. " + data.ContentLength + " bytes");
                 detectedServerSideEncryption = data.ServerSideEncryption;
-                resolve(data.Body);
+                resolve({'data': data.Body, 'name': name});
             }
         });
     });
@@ -82,7 +82,7 @@ const putArtifact = function (bucket, key, artifact) {
 const mergeArtifacts = function (output_artifact, input_artifacts, index) {
     return new Promise((resolve, reject) => {
         // Load the current zip artifact into our output zip
-        output_artifact.loadAsync(input_artifacts[index]).then(updated_output_artifact => {
+        output_artifact.loadAsync(input_artifacts[index].data).then(updated_output_artifact => {
             index += 1;
             if (index < input_artifacts.length) {
                 // Process next zip artifact
@@ -100,12 +100,42 @@ const mergeArtifacts = function (output_artifact, input_artifacts, index) {
     });
 };
 
+const mergeArtifactsWithSubFolder = function (output_artifact, input_artifacts, index) {
+    return new Promise((resolve, reject) => {
+        let folder_name = input_artifacts[index].name
+        inner_folder = output_artifact.folder(folder_name);
+        // Load the current zip artifact into our output zip
+        inner_folder.loadAsync(input_artifacts[index].data).then(() => {
+            index += 1;
+            if (index < input_artifacts.length) {
+                // Process next zip artifact
+                mergeArtifactsWithSubFolder(output_artifact, input_artifacts, index).then(() => {
+                    resolve(output_artifact);
+                });
+            } else {
+                // Last recursive call should drop here
+                resolve(output_artifact);
+            }
+            // JSZip: "The promise can fail if the loaded data is not valid zip data or if it uses unsupported features (multi volume, password protected, etc)."
+        }).catch((error) => {
+            reject(error);
+        });
+    });
+};
+
 // Merge all artifacts
-const mergeAll = function (output_artifact, input_artifacts) {
+const mergeAll = function (output_artifact, input_artifacts, options) {
     let new_zip = new JSZip();
+    let func = null;
+
+    if (options && options.subfolder === true){
+        func = mergeArtifactsWithSubFolder;
+    } else {
+        func = mergeArtifacts;
+    }
 
     // Merge zipped input artifacts into a single zipped output artifact
-    mergeArtifacts(new_zip, input_artifacts, 0).then(merged_zip => {
+    func(new_zip, input_artifacts, 0).then(merged_zip => {
         // Encode the merged output artifact then upload to S3    
         merged_zip.generateAsync({ type: "nodebuffer" }).then(output_artifact_body => {
             putArtifact(output_artifact.bucketName, output_artifact.objectKey, output_artifact_body).then(() => {
@@ -122,6 +152,15 @@ const mergeAll = function (output_artifact, input_artifacts) {
     });
 }
 
+// parameters_string should be a json string, i.e. '{ "subfolder": true }';
+const parseParametersString = function (parameters_string){
+    if (parameters_string) {
+        return JSON.parse(parameters_string);
+    } else {
+        return null;
+    }
+}
+
 exports.handler = function (event, _context) {
     // Retrieve the Job ID from the Lambda action
     jobId = event["CodePipeline.job"].id;
@@ -129,6 +168,15 @@ exports.handler = function (event, _context) {
 
     // Parameters to customize function
     let parameters_string = event["CodePipeline.job"].data.actionConfiguration.configuration.UserParameters;
+    let options = null;
+
+    try {
+        options = parseParametersString(parameters_string);
+    } catch (error){
+        console.log(error);
+        putJobFailure("Invalid JSON input error");
+        return;
+    }
 
     // CodePipeline event meta data
     let job_meta = event['CodePipeline.job']['data'];
@@ -143,13 +191,13 @@ exports.handler = function (event, _context) {
             let output_artifact = output_artifacts_meta[0].location.s3Location;
             // Download all input artifacts from S3
             for (let artifact of input_artifacts_meta) {
-                await_input_artifacts.push(getArtifact(artifact.location.s3Location.bucketName, artifact.location.s3Location.objectKey));
+                await_input_artifacts.push(getArtifact(artifact.location.s3Location.bucketName, artifact.location.s3Location.objectKey, artifact.name));
             }
             // Wait till all input artifacts are fetched.
             Promise.all(await_input_artifacts).then(input_artifacts => {
                 console.log(input_artifacts.length + " artifacts fetched.");
                 if (input_artifacts.length > 0) {
-                    mergeAll(output_artifact, input_artifacts);
+                    mergeAll(output_artifact, input_artifacts, options);
                 } else {
                     console.log("No artifacts found. Nothing to merge.");
                     putJobSuccess("No artifacts found. Nothing to merge.");
@@ -168,3 +216,7 @@ exports.handler = function (event, _context) {
 };
 
 exports.mergeArtifacts = mergeArtifacts;
+
+exports.mergeArtifactsWithSubFolder = mergeArtifactsWithSubFolder;
+
+exports.parseParametersString = parseParametersString;
