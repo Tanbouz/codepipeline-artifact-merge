@@ -132,6 +132,8 @@ Example policy:
 
 * `cd codepipeline-artifact-merge`
 
+* `npm run build`
+
 * Package lambda function
 ```
 aws cloudformation package --template-file dist/deploy.yml --output-template-file tmp/deploy.yml  --region us-east-1 --s3-bucket codepipeline-artifact-merge
