@@ -7,13 +7,72 @@ var index = require("../src/index.js");
 
 suite('Merge', function() {
 
-    suite('Merge Artifacts with default options', function() {
+    suite('Merge Artifacts with root merge and without revisions', function() {
 
         let content_a = fs.readFileSync('test/a.zip');
         let content_b = fs.readFileSync('test/b.zip');
         let revision_a = 'lev28301xf2'
         let revision_b = null;
-        let combinedZipPath = "test/generated/combined_default.zip";
+        let combinedZipPath = "test/generated/reference_root.zip";
+
+        setup(function(done) {
+            let zip = new JSZip();
+            zip.loadAsync(content_a).then((zip) => {
+                zip.loadAsync(content_b).then((zip) => {
+                    zip.generateAsync({ type: "nodebuffer" }).then((content) => {
+                        require("fs").writeFile(combinedZipPath, content, function (error) {
+                            if (error){
+                                console.log("JSZip error: " + error);
+                            }
+                            done();
+                        });
+                    })
+                })
+            });
+        });
+
+
+        test('should return a zipped file with the correct contents', function(done) {
+            let new_zip = new JSZip();
+            let input_artifacts = [
+                {'data': content_a, 'name':'a', 'revision':revision_a},
+                {'data': content_b, 'name':'b', 'revision':revision_b}
+            ];
+            let outputZipPath = "test/generated/output_root.zip";
+            let expected = fs.readFileSync(combinedZipPath);
+
+            let options = {
+                "subfolder": false,
+                "revisions": false
+            }
+
+            index.mergeArtifacts(new_zip, input_artifacts, 0, options).then(merged_zip => {
+
+                merged_zip.generateAsync({ type: "nodebuffer" }).then((content) => {
+                    require("fs").writeFile(outputZipPath, content, function (error) {
+                        if (error){
+                            console.log("JSZip error: " + error);
+                        }
+                        let output = fs.readFileSync(outputZipPath);
+
+                        assert.isTrue(output.equals(expected));
+                        done();
+                    });
+                })
+            }).catch((error) => {
+                console.log("JSZip error: " + error);
+            });
+
+        });
+    })
+
+    suite('Merge Artifacts with root merge and revisions', function() {
+
+        let content_a = fs.readFileSync('test/a.zip');
+        let content_b = fs.readFileSync('test/b.zip');
+        let revision_a = 'lev28301xf2'
+        let revision_b = null;
+        let combinedZipPath = "test/generated/reference_root_revision.zip";
 
         setup(function(done) {
             let zip = new JSZip();
@@ -40,10 +99,15 @@ suite('Merge', function() {
                 {'data': content_a, 'name':'a', 'revision':revision_a},
                 {'data': content_b, 'name':'b', 'revision':revision_b}
             ];
-            let outputZipPath = "test/generated/output_default.zip";
+            let outputZipPath = "test/generated/output_root_revision.zip";
             let expected = fs.readFileSync(combinedZipPath);
 
-            index.mergeArtifacts(new_zip, input_artifacts, 0).then(merged_zip => {
+            let options = {
+                "subfolder": false,
+                "revisions": true
+            }
+
+            index.mergeArtifacts(new_zip, input_artifacts, 0, options).then(merged_zip => {
 
                 merged_zip.generateAsync({ type: "nodebuffer" }).then((content) => {
                     require("fs").writeFile(outputZipPath, content, function (error) {
@@ -63,13 +127,75 @@ suite('Merge', function() {
         });
     })
 
-    suite('Merge Artifacts with subfolder mapping', function() {
+    suite('Merge Artifacts with subfolder mapping and without revisions', function() {
 
         let content_a = fs.readFileSync('test/a.zip');
         let content_b = fs.readFileSync('test/b.zip');
         let revision_a = 'lev28301xf2'
         let revision_b = null;
-        let combinedZipPath = "test/generated/combined_subfolder.zip";
+        let combinedZipPath = "test/generated/reference_subfolder.zip";
+
+        setup(function(done) {
+            let zip = new JSZip();
+            inner_folder_a = zip.folder('a');
+
+            inner_folder_a.loadAsync(content_a).then(() => {
+                inner_folder_b = zip.folder('b');
+                inner_folder_b.loadAsync(content_b).then(() => {
+                    zip.generateAsync({ type: "nodebuffer" }).then((content) => {
+                        require("fs").writeFile(combinedZipPath, content, function (error) {
+                            if (error){
+                                console.log("JSZip error: " + error);
+                            }
+                            done();
+                        });
+                    })
+                })
+            });
+        });
+
+
+        test('should return a zipped file with the correct contents', function(done) {
+            let new_zip = new JSZip();
+            let input_artifacts = [
+                {'data': content_a, 'name':'a', 'revision':revision_a},
+                {'data': content_b, 'name':'b', 'revision':revision_b}
+            ];
+            let outputZipPath = "test/generated/output_subfolder.zip";
+            let expected = fs.readFileSync(combinedZipPath);
+
+            let options = {
+                "subfolder": true,
+                "revisions": false
+            }
+
+            index.mergeArtifacts(new_zip, input_artifacts, 0, options).then(merged_zip => {
+
+                merged_zip.generateAsync({ type: "nodebuffer" }).then((content) => {
+                    require("fs").writeFile(outputZipPath, content, function (error) {
+                        if (error){
+                            console.log("JSZip error: " + error);
+                        }
+                        let output = fs.readFileSync(outputZipPath);
+
+                        assert.isTrue(output.equals(expected));
+                        done();
+                    });
+                })
+            }).catch((error) => {
+                console.log("JSZip error: " + error);
+            });
+
+        });
+    })
+
+    suite('Merge Artifacts with subfolder mapping and revisions', function() {
+
+        let content_a = fs.readFileSync('test/a.zip');
+        let content_b = fs.readFileSync('test/b.zip');
+        let revision_a = 'lev28301xf2'
+        let revision_b = null;
+        let combinedZipPath = "test/generated/reference_subfolder_revisions.zip";
 
         setup(function(done) {
             let zip = new JSZip();
@@ -99,10 +225,15 @@ suite('Merge', function() {
                 {'data': content_a, 'name':'a', 'revision':revision_a},
                 {'data': content_b, 'name':'b', 'revision':revision_b}
             ];
-            let outputZipPath = "test/generated/output_subfolder.zip";
+            let outputZipPath = "test/generated/output_subfolder_revisions.zip";
             let expected = fs.readFileSync(combinedZipPath);
 
-            index.mergeArtifactsWithSubFolder(new_zip, input_artifacts, 0).then(merged_zip => {
+            let options = {
+                "subfolder": true,
+                "revisions": true
+            }
+
+            index.mergeArtifacts(new_zip, input_artifacts, 0, options).then(merged_zip => {
 
                 merged_zip.generateAsync({ type: "nodebuffer" }).then((content) => {
                     require("fs").writeFile(outputZipPath, content, function (error) {

@@ -47,7 +47,7 @@ const getArtifact = function (bucket, key, name, revision) {
             } else {
                 console.log(bucket + key + " fetched. " + data.ContentLength + " bytes");
                 detectedServerSideEncryption = data.ServerSideEncryption;
-                resolve({'data': data.Body, 'name': name, 'revision': revision});
+                resolve({ 'data': data.Body, 'name': name, 'revision': revision });
             }
         });
     });
@@ -79,42 +79,32 @@ const putArtifact = function (bucket, key, artifact) {
 };
 
 // Merges zip files synchronously in a recursive manner (Await/Async when Lambda supports Node8?)
-const mergeArtifacts = function (output_artifact, input_artifacts, index) {
+const mergeArtifacts = function (output_artifact, input_artifacts, index, options) {
     return new Promise((resolve, reject) => {
-        // create a text file with revision id
-        output_artifact.file(".revision-id-"+input_artifacts[index].name, input_artifacts[index].revision);
-        // Load the current zip artifact into our output zip
-        output_artifact.loadAsync(input_artifacts[index].data).then(updated_output_artifact => {
-            index += 1;
-            if (index < input_artifacts.length) {
-                // Process next zip artifact
-                mergeArtifacts(updated_output_artifact, input_artifacts, index).then(next_output_artifact => {
-                    resolve(next_output_artifact);
-                });
-            } else {
-                // Last recursive call should drop here
-                resolve(updated_output_artifact);
-            }
-            // JSZip: "The promise can fail if the loaded data is not valid zip data or if it uses unsupported features (multi volume, password protected, etc)."
-        }).catch((error) => {
-            reject(error);
-        });
-    });
-};
 
-const mergeArtifactsWithSubFolder = function (output_artifact, input_artifacts, index) {
-    return new Promise((resolve, reject) => {
-        let folder_name = input_artifacts[index].name
-        inner_folder = output_artifact.folder(folder_name);
-        // create a text file with revision id
-        inner_folder.file(".revision-id", input_artifacts[index].revision);
+        if (options && options.subfolder === true) {
+            // Merge into subfolders
+            let folder_name = input_artifacts[index].name
+            var merge_target = output_artifact.folder(folder_name);
+            if (options.revisions === true) {
+                // create a text file with revision id
+                merge_target.file(".revision-id", input_artifacts[index].revision);
+            }
+        } else {
+            // Merge at root level
+            var merge_target = output_artifact;
+            if (options && options.revisions === true) {
+                merge_target.file(".revision-id-" + input_artifacts[index].name, input_artifacts[index].revision);
+            }
+        }
+
         // Load the current zip artifact into our output zip
-        inner_folder.loadAsync(input_artifacts[index].data).then(() => {
+        merge_target.loadAsync(input_artifacts[index].data).then(() => {
             index += 1;
             if (index < input_artifacts.length) {
                 // Process next zip artifact
-                mergeArtifactsWithSubFolder(output_artifact, input_artifacts, index).then(() => {
-                    resolve(output_artifact);
+                mergeArtifacts(output_artifact, input_artifacts, index, options).then(next_merged_artifact => {
+                    resolve(next_merged_artifact);
                 });
             } else {
                 // Last recursive call should drop here
@@ -130,16 +120,9 @@ const mergeArtifactsWithSubFolder = function (output_artifact, input_artifacts, 
 // Merge all artifacts
 const mergeAll = function (output_artifact, input_artifacts, options) {
     let new_zip = new JSZip();
-    let func = null;
-
-    if (options && options.subfolder === true){
-        func = mergeArtifactsWithSubFolder;
-    } else {
-        func = mergeArtifacts;
-    }
 
     // Merge zipped input artifacts into a single zipped output artifact
-    func(new_zip, input_artifacts, 0).then(merged_zip => {
+    mergeArtifacts(new_zip, input_artifacts, 0, options).then(merged_zip => {
         // Encode the merged output artifact then upload to S3    
         merged_zip.generateAsync({ type: "nodebuffer" }).then(output_artifact_body => {
             putArtifact(output_artifact.bucketName, output_artifact.objectKey, output_artifact_body).then(() => {
@@ -157,7 +140,7 @@ const mergeAll = function (output_artifact, input_artifacts, options) {
 }
 
 // parameters_string should be a json string, i.e. '{ "subfolder": true }';
-const parseParametersString = function (parameters_string){
+const parseParametersString = function (parameters_string) {
     if (parameters_string) {
         return JSON.parse(parameters_string);
     } else {
@@ -176,7 +159,7 @@ exports.handler = function (event, _context) {
 
     try {
         options = parseParametersString(parameters_string);
-    } catch (error){
+    } catch (error) {
         console.log(error);
         putJobFailure("Invalid JSON input error");
         return;
@@ -220,7 +203,5 @@ exports.handler = function (event, _context) {
 };
 
 exports.mergeArtifacts = mergeArtifacts;
-
-exports.mergeArtifactsWithSubFolder = mergeArtifactsWithSubFolder;
 
 exports.parseParametersString = parseParametersString;
