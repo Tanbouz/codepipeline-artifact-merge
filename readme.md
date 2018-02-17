@@ -24,7 +24,7 @@ c.zip
 └──c.txt
 ```
 
-Step 1 - Root merge (Default)
+Step 1 - Root merge with revisions option
 
 Input Artifacts: `a.zip` & `b.zip`
 
@@ -43,7 +43,7 @@ foo
 > The [revision ID]((https://docs.aws.amazon.com/codepipeline/latest/APIReference/API_Artifact.html#CodePipeline-Type-Artifact-revision)) 
 of each input artifact is included in the file .revision-id-{name-of-input-artifact}
 
-Step 2 - Subfolder merge (see *Modes*)
+Step 2 - Subfolder merge with revisions option (see *Modes*)
 
 Input Artifacts: `foo` & `c.zip`
 
@@ -96,7 +96,10 @@ After you deploy the CodePipeline Artifact Merge function (see *Deployment* belo
 Combines different artifacts at the root level of the directories
 
 * **Subfolder merge**
-Have each input artifact contained in its own folder within the output artifact zip, with the folder name being the input artifact name itself. To set this option, enter the JSON string `{ "subfolder": true }` as an input parameter to the lambda.
+Have each input artifact contained in its own folder within the output artifact zip, with the folder name being the input artifact name itself. To set this option, enter the JSON string `{ "subfolder": true }` as an input parameter to lambda.
+
+* **Revisions**
+Creates a file with the revision-id of the input artifact in the output. This allows the succeeding codepipeline stages such as CodeBuild to use the git/S3 revision number for versioning. To set this option, enter the JSON string `{ "revisions": true }` as an input parameter to lambda. Or `{ "subfolder": true, "revisions": true }` if using subfolder merge too.
 
 ## 3. Deployment
 
@@ -161,3 +164,4 @@ aws cloudformation deploy --parameter-overrides FunctionName=CodePipelineArtifac
 ### 4. Notes
  * Even though there is no hard-limit on how many artifacts the function can merge, it is currently limited by CodePipeline & Lambda integration restriction of 5 input artifacts. ( Cascade merge? )
  * If your application code size is large, maybe tweaking Lambda's __Memory__ and __Timeout__ can help.
+ * Revisions & cascade merge: using revisions option on a merge action that has an input artifact from a previous merge action might result in revision files with a null value or empty content. 
