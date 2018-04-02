@@ -124,7 +124,7 @@ const mergeAll = function (output_artifact, input_artifacts, options) {
     // Merge zipped input artifacts into a single zipped output artifact
     mergeArtifacts(new_zip, input_artifacts, 0, options).then(merged_zip => {
         // Encode the merged output artifact then upload to S3    
-        merged_zip.generateAsync({ type: "nodebuffer" }).then(output_artifact_body => {
+        merged_zip.generateAsync({ type: "nodebuffer", platform: process.platform }).then(output_artifact_body => {
             putArtifact(output_artifact.bucketName, output_artifact.objectKey, output_artifact_body).then(() => {
                 console.log("Merged artifacts successfully and uploaded to S3.");
                 putJobSuccess("Merged artifacts successfully.");
