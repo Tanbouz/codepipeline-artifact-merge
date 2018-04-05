@@ -103,12 +103,9 @@ Creates a file with the revision-id of the input artifact in the output. This al
 
 ## 3. Deployment
 
-#### 3.1 AWS Serverless Application Repository (Preview)
-
-Register for preview https://aws.amazon.com/serverless/serverlessrepo/
+#### 3.1 AWS Serverless Application Repository
 
 Deploy using [AWS Serverless Application Repository](https://serverlessrepo.aws.amazon.com/#/applications/arn:aws:serverlessrepo:us-east-1:775015977546:applications~codepipeline-artifact-merge)
-
 
 **Important** If you deploy through AWS Serverless Application Repository, you have to manually add permissions to the function's role so as Lambda can notify CodePipeline about its status. Unfortunately this can't be automated at the moment when using AWS Serverless Application Repository.
 
