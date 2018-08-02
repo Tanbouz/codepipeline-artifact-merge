@@ -19,8 +19,9 @@
     "tar-to-zip": "^2.0.0"
   },
   "devDependencies": {
-    "aws-sdk": "^2.181.0",
+    "aws-sdk": "^2.285.1",
     "chai": "4.1.2",
+    "globby": "^7.1.1",
     "mocha": "5.0.0"
   }
 }
