@@ -1,5 +1,7 @@
 const AWS = require('aws-sdk');
 const JSZip = require("jszip");
+const TarToZip = require("./tarToZip.js");
+const fs = require('fs');
 
 const s3 = new AWS.S3();
 const codepipeline = new AWS.CodePipeline();
@@ -38,50 +40,72 @@ const putJobFailure = function (message) {
 };
 
 // Retrieve an artifact from S3
-const getArtifact = function (bucket, key, name, revision) {
-    return new Promise((resolve, reject) => {
-        s3.getObject({ Bucket: bucket, Key: key }, function (error, data) {
-            if (error != null) {
-                console.log("Failed to retrieve from S3: " + bucket + key);
-                reject(error);
-            } else {
-                console.log(bucket + key + " fetched. " + data.ContentLength + " bytes");
-                detectedServerSideEncryption = data.ServerSideEncryption;
-                resolve({ 'data': data.Body, 'name': name, 'revision': revision });
-            }
-        });
-    });
+const getArtifact = async function (bucket, key, name, revision) {
+    let data = null;
+
+    try {
+        if(TarToZip.isTar(key)) {
+            let metadata = await s3.headObject({ Bucket: bucket, Key: key }).promise();
+            let s3Stream = s3.getObject({ Bucket: bucket, Key: key }).createReadStream();
+            data = await getTarArtifact(s3Stream, name);
+            data.ServerSideEncryption = metadata.ServerSideEncryption;
+        }
+        else {
+            data = await s3.getObject({ Bucket: bucket, Key: key }).promise();
+        }
+        
+        console.log(`${bucket}/${key} fetched. ${data.ContentLength} bytes`);
+        detectedServerSideEncryption = data.ServerSideEncryption;
+        return { 'data': data.Body, 'name': name, 'revision': revision };
+    }
+    catch(error) {
+        console.log(`Failed to retrieve from S3: ${bucket}/${key}`);
+        throw error;
+    }
 };
 
-// Put an artifact on S3
-const putArtifact = function (bucket, key, artifact) {
+const getTarArtifact = async function (s3Stream, name) {
+    try {   
+        let filename = await TarToZip.convert(s3Stream, name);
 
-    return new Promise((resolve, reject) => {
+        let content = fs.readFileSync(filename);
+        console.log(`convert ${filename} successed. ${content.length} bytes`);
+
+        return {
+            ContentLength: content.length,
+            //ServerSideEncryption: "",
+            Body: content
+        }
+    }
+    catch(error) {
+        console.log("Failed to retrieve from S3: " + bucket + key);
+        throw error;
+    }
+}
+
+// Put an artifact on S3
+const putArtifact = async function (bucket, key, artifact) {
+    try{
         let params = {
             Body: artifact,
             Bucket: bucket,
             ContentType: "application/zip",
             Key: key
         };
-
         if (detectedServerSideEncryption) {
             params.ServerSideEncryption = detectedServerSideEncryption;
         }
-
-        s3.putObject(params, function (error, data) {
-            if (error) {
-                reject(error);
-            } else {
-                resolve();
-            }
-        });
-    });
+        let result = await s3.putObject(params).promise();
+        return result;
+    }
+    catch(error) {
+        throw error;
+    }
 };
 
 // Merges zip files synchronously in a recursive manner (Await/Async when Lambda supports Node8?)
 const mergeArtifacts = function (output_artifact, input_artifacts, index, options) {
     return new Promise((resolve, reject) => {
-
         if (options && options.subfolder === true) {
             // Merge into subfolders
             let folder_name = input_artifacts[index].name
@@ -205,3 +229,5 @@ exports.handler = function (event, _context) {
 exports.mergeArtifacts = mergeArtifacts;
 
 exports.parseParametersString = parseParametersString;
+
+exports.getTarArtifact = getTarArtifact;
