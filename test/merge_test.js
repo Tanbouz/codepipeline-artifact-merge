@@ -1,12 +1,102 @@
-var JSZip = require("jszip");
-var fs = require("fs");
+const JSZip = require("jszip");
+const globby = require('globby');
+const fs = require("fs");
+const path = require("path");
+const index = require("../src/index.js");
+const Utils = require("./test_utils.js");
 let chai = require('chai');
 let assert = chai.assert;
-var index = require("../src/index.js");
 
 
 suite('Merge', function() {
 
+    suite('Merge tar.gz Artifacts with subfolder mapping and revisions', function() {
+        let expected_a = fs.readFileSync(path.join('test', 'a.zip'));
+
+        //random test folder name to ensure unused
+        let seed = Date.now();
+        let test_tar_path = path.join('test', 'tar'+seed);
+        let expacted_path = path.join('test', 'extracted'+seed);
+        
+        suiteSetup(function(done) {
+            //init folder for test
+            Utils.mkdirSync(test_tar_path);
+            Utils.mkdirSync(expacted_path);
+
+            //init extracted of expected_a
+            let zip = new JSZip();
+            zip.loadAsync(expected_a).then(content => {
+                return Utils.extractZip(content, expacted_path);
+            }).then(() => {
+                done();
+            }).catch(err => {
+                console.log(err);
+            });
+        });
+
+        test('convert tar.gz file', async function() {
+            const stream_a = fs.createReadStream(path.join('test', 'a.tar.gz')); 
+            let zip = new JSZip();
+
+            let content = await index.getTarArtifact(stream_a, 'a');
+
+            await zip.loadAsync(content.Body);
+            await Utils.extractZip(zip, test_tar_path);
+        });
+
+        test('each file inside tar file should be identical with zipped file', function() {
+            const testFiles = globby.sync(test_tar_path);
+
+            testFiles.forEach(filePath => {
+                let pathInfo = path.parse(filePath);
+
+                //get path of expected
+                let pathArray = pathInfo.dir.split('/');
+                let expextedPathArray = expacted_path.split('/');
+                let expectedPathStr = "";
+                pathArray.forEach((value, index) => {
+                    if((typeof expextedPathArray[index] === 'string')&&(expextedPathArray[index] !== '')) {
+                        expectedPathStr = path.join(expectedPathStr, expextedPathArray[index]);
+                    }
+                    else {
+                        expectedPathStr = path.join(expectedPathStr, pathArray[index]);
+                    }
+                });
+
+                //read test and expect item
+                let testContent = fs.readFileSync(filePath);
+                let expectContent = fs.readFileSync(path.join(expectedPathStr, pathInfo.base));
+
+                assert.isTrue(testContent.equals(expectContent));
+            });   
+        });
+
+        suiteTeardown(function(done) {
+            let cleanTest = function(folderName) {
+                const testFiles = globby.sync(folderName, {
+                    expandDirectories: true,
+                    nodir: false
+                });
+                testFiles.reverse().forEach(item => {
+                    let isFolder = fs.lstatSync(item).isDirectory();
+                    if(isFolder) {
+                        fs.rmdirSync(item);
+                    }
+                    else {
+                        fs.unlinkSync(item);
+                    }
+                });
+            }
+
+            //clean
+            cleanTest(test_tar_path);
+            cleanTest(expacted_path);
+            done();
+        });
+    })
+
+
+    
     suite('Merge Artifacts with root merge and without revisions', function() {
 
         let content_a = fs.readFileSync('test/a.zip');

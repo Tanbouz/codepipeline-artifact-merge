@@ -14,10 +14,10 @@ Resources:
     Properties:
       FunctionName: !Ref FunctionName
       Description: "Merge artifacts in AWS CodePipeline into a single artifact using AWS Lambda"
-      Runtime: nodejs6.10
+      Runtime: nodejs8.10
       Handler: index.handler
-      MemorySize: 256
-      Timeout: 30
+      MemorySize: 512
+      Timeout: 60
       AutoPublishAlias: prod
       Policies:
         - S3CrudPolicy:
