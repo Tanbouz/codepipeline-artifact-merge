@@ -14,7 +14,7 @@ Resources:
     Properties:
       FunctionName: !Ref FunctionName
       Description: "Merge artifacts in AWS CodePipeline into a single artifact using AWS Lambda"
-      Runtime: nodejs8.10
+      Runtime: nodejs10.x
       Handler: index.handler
       MemorySize: 512
       Timeout: 60
@@ -22,10 +22,4 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref ArtifactStore
-        - Version: '2012-10-17'
-          Statement:
-            - Effect: 'Allow'
-              Action:
-                - codepipeline:PutJobSuccessResult
-                - codepipeline:PutJobFailureResult
-              Resource: '*'
+        - CodePipelineLambdaExecutionPolicy: {}
