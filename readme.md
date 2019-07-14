@@ -1,4 +1,4 @@
-# CodePipeline Artifact Merge
+# CodePipeline Artifact Merge [![CircleCI](https://circleci.com/gh/Tanbouz/codepipeline-artifact-merge.svg?style=svg)](https://circleci.com/gh/Tanbouz/codepipeline-artifact-merge)
 
 Merge artifacts in AWS CodePipeline into a single artifact using AWS Lambda.
 
