@@ -15,7 +15,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "jszip": "3.2.2",
+    "jszip": "3.7.0",
     "tar-to-zip": "^2.0.0"
   },
   "devDependencies": {
